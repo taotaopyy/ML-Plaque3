@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+
+data/all_variable_step1.csv
+data/train.csv
+data/test.csv
+data/train_processed.csv
+data/test_processed.csv
+data/preprocess_params.json
