@@ -103,6 +103,9 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--min-features", type=int, default=5,
                         help="RFECV 至少保留的特征数")
+    parser.add_argument("--use-consensus", action="store_true",
+                        help="改用 04_rfe_analysis.py 输出的共识特征集（"
+                             "data/rfe_consensus.json），跳过本脚本 RFECV")
     args = parser.parse_args()
 
     if not FEATURES_PATH.exists():
@@ -142,36 +145,50 @@ def main() -> None:
 
     y_train = train[target].astype(int).values
 
-    # 4. RFECV ---------------------------------------------------------
-    estimator = LogisticRegression(
-        penalty="l2", solver="liblinear", max_iter=2000, class_weight="balanced"
-    )
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=args.seed)
-    rfecv = RFECV(
-        estimator=estimator,
-        step=1,
-        cv=cv,
-        scoring="roc_auc",
-        min_features_to_select=max(1, args.min_features),
-        n_jobs=-1,
-    )
-    print(f"\n[RFE] 在 {len(rfe_pool)} 个 RFE 候选上跑 RFECV（LR, 5-fold, AUC）...")
-    rfecv.fit(X_rfe_train_std, y_train)
+    # 4. 选特征：默认 RFECV(LR)，也可读取 04_rfe_analysis.py 的共识集合 -
+    consensus_path = DATA_DIR / "rfe_consensus.json"
+    if args.use_consensus and consensus_path.exists():
+        cons = json.loads(consensus_path.read_text(encoding="utf-8"))
+        selected_rfe = [c for c in cons["consensus_features"] if c in rfe_pool]
+        ranking = pd.DataFrame({
+            "feature": rfe_pool,
+            "rank":    [1 if c in selected_rfe else 2 for c in rfe_pool],
+            "selected": [c in selected_rfe for c in rfe_pool],
+        }).sort_values(["rank", "feature"])
+        ranking.to_csv(OUT_RANK, index=False, encoding="utf-8-sig")
+        print(f"\n[RFE] 复用共识特征集 ({len(selected_rfe)} 个) "
+              f"来自 {consensus_path}")
+        cv_best_auc = float(max(v["best_cv_auc"] for v in cons["per_learner"].values()))
+    else:
+        estimator = LogisticRegression(
+            penalty="l2", solver="liblinear", max_iter=2000, class_weight="balanced"
+        )
+        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=args.seed)
+        rfecv = RFECV(
+            estimator=estimator,
+            step=1,
+            cv=cv,
+            scoring="roc_auc",
+            min_features_to_select=max(1, args.min_features),
+            n_jobs=5,
+        )
+        print(f"\n[RFE] 在 {len(rfe_pool)} 个 RFE 候选上跑 RFECV（LR, 5-fold, AUC）...")
+        rfecv.fit(X_rfe_train_std, y_train)
 
-    ranking = pd.DataFrame({
-        "feature": rfe_pool,
-        "rank":    rfecv.ranking_,
-        "selected": rfecv.support_,
-    }).sort_values(["rank", "feature"])
-    ranking.to_csv(OUT_RANK, index=False, encoding="utf-8-sig")
+        ranking = pd.DataFrame({
+            "feature": rfe_pool,
+            "rank":    rfecv.ranking_,
+            "selected": rfecv.support_,
+        }).sort_values(["rank", "feature"])
+        ranking.to_csv(OUT_RANK, index=False, encoding="utf-8-sig")
 
-    selected_rfe = [c for c, keep in zip(rfe_pool, rfecv.support_) if keep]
+        selected_rfe = [c for c, keep in zip(rfe_pool, rfecv.support_) if keep]
+        cv_best_auc = float(rfecv.cv_results_["mean_test_score"].max())
+        print(f"[RFE] 选出特征 {len(selected_rfe)} / {len(rfe_pool)}")
+        print(f"      {selected_rfe}")
+        print(f"[RFE] 最佳 CV AUC = {cv_best_auc:.4f}（@ k={rfecv.n_features_}）")
+
     final_features = fixed + selected_rfe
-    print(f"[RFE] 选出特征 {len(selected_rfe)} / {len(rfe_pool)}")
-    print(f"      {selected_rfe}")
-
-    cv_scores = rfecv.cv_results_["mean_test_score"]
-    print(f"[RFE] 最佳 CV AUC = {cv_scores.max():.4f}（@ k={rfecv.n_features_}）")
 
     # 5. 输出最终训练 / 测试集 ----------------------------------------
     keep_cols = ([id_col] if id_col and id_col in train.columns else []) + [target] + final_features
@@ -186,8 +203,9 @@ def main() -> None:
         "rfe_pool": rfe_pool,
         "rfe_selected": selected_rfe,
         "final_features": final_features,
-        "rfe_best_n_features": int(rfecv.n_features_),
-        "rfe_best_cv_auc": float(cv_scores.max()),
+        "rfe_best_n_features": int(len(selected_rfe)),
+        "rfe_best_cv_auc": cv_best_auc,
+        "source": "consensus" if (args.use_consensus and consensus_path.exists()) else "rfecv_lr",
     }
     with open(OUT_SELECT, "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)

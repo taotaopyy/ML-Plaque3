@@ -22,6 +22,7 @@ python 模型比较/01_feature_engineering.py
 
 # 步骤 2：分层划分（默认 8:2，按 accession_id 分组）+ RFECV（LR, AUC, 5-fold）
 python 模型比较/02_rfe_select.py
+#   或：python 模型比较/02_rfe_select.py --use-consensus   # 复用步骤 4 的共识集
 #   -> data/model_train.csv, data/model_test.csv
 #   -> data/selected_features.json, data/rfe_ranking.csv
 
@@ -30,6 +31,13 @@ python 模型比较/03_model_comparison.py
 #   -> data/model_comparison.csv           （阈值=0.5）
 #   -> data/model_comparison_optimal.csv   （阈值=Youden 最优）
 #   -> data/roc_comparison.png
+
+# 步骤 4：RFE 深度分析（LR / RF / GBM 三基学习器 + AUC 曲线 + 共识特征集）
+python 模型比较/04_rfe_analysis.py
+#   -> data/rfe_analysis_per_learner.csv   每特征在每个基学习器下的 rank / 是否选中
+#   -> data/rfe_consensus.json             多数表决得到的共识特征集
+#   -> data/rfe_curve_{LR,RF,GBM}.png      各自的 AUC vs 保留特征数曲线
+#   -> data/rfe_curves_combined.png        三条曲线叠加
 ```
 
 ## 关键设计
@@ -62,9 +70,12 @@ python 模型比较/03_model_comparison.py
 
 ### RFECV
 - 在 **RFE 候选** 集合上独立运行（固定特征始终保留）。
-- 基学习器：`LogisticRegression(L2, class_weight='balanced')`。
-- 5 折分层 CV，评分 = ROC-AUC；step=1，最少保留 5 个特征。
-- 输出每个候选特征的 `rank` 与是否被选入。
+- 步骤 2 默认 `LogisticRegression(L2, class_weight='balanced')`，5 折分层 CV，
+  step=1，最少保留 5 个特征。
+- 步骤 4 同样的 RFECV 框架下换 **3 个基学习器** 各跑一遍（LR / RF / GBM），
+  取多数表决得到 **共识特征集**，并绘制 AUC vs 保留特征数 曲线，输出
+  `data/rfe_consensus.json`。可通过 `python 02_rfe_select.py --use-consensus`
+  让步骤 3 用共识集而非单一基学习器的结果。
 
 ### 模型 Pipeline
 对 KNN / LR / SVM 启用 `StandardScaler`；树模型仅做缺失值中位数插补。

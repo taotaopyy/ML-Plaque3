@@ -26,3 +26,9 @@ data/rfe_ranking.csv
 data/model_comparison.csv
 data/model_comparison_optimal.csv
 data/roc_comparison.png
+data/rfe_analysis_per_learner.csv
+data/rfe_consensus.json
+data/rfe_curve_LR.png
+data/rfe_curve_RF.png
+data/rfe_curve_GBM.png
+data/rfe_curves_combined.png
