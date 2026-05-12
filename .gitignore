@@ -9,3 +9,11 @@ data/test.csv
 data/train_processed.csv
 data/test_processed.csv
 data/preprocess_params.json
+data/var_check_continuous.csv
+data/var_check_discrete.csv
+data/var_check_summary.txt
+data/collinearity_pearson.csv
+data/collinearity_spearman.csv
+data/collinearity_high_pairs.csv
+data/collinearity_vif.csv
+data/collinearity_drop_candidates.csv
