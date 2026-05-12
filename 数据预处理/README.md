@@ -4,16 +4,16 @@
 
 ```bash
 # 步骤 1：单位 / 日期 / 基础编码 统一化
-python preprocessing/01_format_unify.py
+python 数据预处理/01_format_unify.py
 #   -> data/all_variable_step1.csv
 
 # 步骤 2：分层随机抽样（默认 8:2，按 accession_id 分组防泄漏）
-python preprocessing/02_split_dataset.py            # 8:2
-python preprocessing/02_split_dataset.py --test-size 0.3   # 7:3
+python 数据预处理/02_split_dataset.py            # 8:2
+python 数据预处理/02_split_dataset.py --test-size 0.3   # 7:3
 #   -> data/train.csv, data/test.csv
 
 # 步骤 3：基于训练集的局部预处理（异常值 / 缺失 / 偏态 / one-hot）
-python preprocessing/03_train_local_preprocess.py
+python 数据预处理/03_train_local_preprocess.py
 #   -> data/train_processed.csv, data/test_processed.csv
 #   -> data/preprocess_params.json
 ```
