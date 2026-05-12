@@ -17,3 +17,12 @@ data/collinearity_spearman.csv
 data/collinearity_high_pairs.csv
 data/collinearity_vif.csv
 data/collinearity_drop_candidates.csv
+data/features_engineered.csv
+data/feature_manifest.json
+data/model_train.csv
+data/model_test.csv
+data/selected_features.json
+data/rfe_ranking.csv
+data/model_comparison.csv
+data/model_comparison_optimal.csv
+data/roc_comparison.png
