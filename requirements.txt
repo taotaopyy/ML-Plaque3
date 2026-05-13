@@ -6,3 +6,6 @@ statsmodels>=0.14
 xgboost>=2.0
 lightgbm>=4.0
 matplotlib>=3.7
+shap>=0.42
+imbalanced-learn>=0.11
+optuna>=3.0
